@@ -19,9 +19,45 @@ Transition Codes & Classes
 | **11** | Persistent Degraded Land | `#FF8C00` |
 | **22** | Stable Estuarine Water | `#000080` |
 
-Installation & Setup
 
-1. **Clone the repository:**
-   ```bash
-   git clone [https://github.com/your-username/Sundarbans-Delta-Calculator.git](https://github.com/your-username/Sundarbans-Delta-Calculator.git)
-   cd Sundarbans-Delta-Calculator
+How to Generate Custom GeoTIFF Datasets
+
+If you need classified single-band GeoTIFF files for a specific year (e.g., 2021), you can generate and export them directly to your Google Drive using **Google Earth Engine (GEE)**:
+
+1. Open the [Google Earth Engine Code Editor](https://code.earthengine.google.com/).
+2. Paste the following JavaScript code into the editor:
+
+```javascript
+// 1. Define Sundarbans Region of Interest (ROI)
+var roi = ee.Geometry.Rectangle([88.0, 21.5, 89.2, 22.5]);
+
+// 2. Fetch Sentinel-2 Surface Reflectance for Target Year
+var targetYear = 2021; // Change year as needed
+var s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filterBounds(roi)
+  .filterDate(targetYear + '-01-01', targetYear + '-12-31')
+  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 10))
+  .median()
+  .clip(roi);
+
+// 3. Compute Normalized Difference Vegetation Index (NDVI)
+var ndvi = s2.normalizedDifference(['B8', 'B4']).rename('NDVI');
+
+// 4. Reclassify into Discrete Classes
+// Class 0: Dense/Healthy Mangrove (NDVI >= 0.4)
+// Class 1: Degraded Vegetation (0 <= NDVI < 0.4)
+// Class 2: Water (NDVI < 0)
+var classified = ee.Image(1)
+  .where(ndvi.gte(0.4), 0)
+  .where(ndvi.lt(0), 2)
+  .toInt32();
+
+// 5. Export as Single-Band GeoTIFF to Google Drive
+Export.image.toDrive({
+  image: classified,
+  description: 'Sundarbans_Classification_' + targetYear + '_UTM',
+  scale: 20,
+  region: roi,
+  crs: 'EPSG:32645',
+  fileFormat: 'GeoTIFF'
+});
