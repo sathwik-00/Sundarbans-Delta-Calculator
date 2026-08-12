@@ -1,0 +1,12 @@
+# Python temporary files
+__pycache__/
+*.pyc
+.env/
+venv/
+
+# Ignore heavy GIS datasets and output files
+*.tif
+*.tiff
+*.png
+outputs/
+data/
